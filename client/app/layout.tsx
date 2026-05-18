@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 
-
 export const metadata: Metadata = {
-  title: "aquaflow",
-  description: "AI Driven Water Recycle Plant Analysis Platform",
+  title: "Aquaflow",
+  description: "Wastewater compliance intelligence platform",
 };
 
 export default function RootLayout({
@@ -15,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body className="bg-[#050d1a] text-[#e8f4ff]">
         <Providers>
           {children}
         </Providers>

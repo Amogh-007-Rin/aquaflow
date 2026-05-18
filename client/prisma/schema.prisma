@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String         @id @default(cuid())
+  name       String?
+  email      String         @unique
+  password   String?
+  role       Role           @default(OPERATOR)
+  facilities FacilityUser[]
+  createdAt  DateTime       @default(now())
+  accounts   Account[]
+  sessions   Session[]
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  OPERATOR
+  AUDITOR
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  access_token      String? @db.Text
+  refresh_token     String? @db.Text
+  expires_at        Int?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Facility {
+  id        String         @id @default(cuid())
+  name      String
+  location  String
+  latitude  Float
+  longitude Float
+  industry  String
+  licenseNo String         @unique
+  status    FacilityStatus @default(ACTIVE)
+  sensors   Sensor[]
+  alerts    Alert[]
+  reports   Report[]
+  users     FacilityUser[]
+  createdAt DateTime       @default(now())
+}
+
+enum FacilityStatus {
+  ACTIVE
+  SUSPENDED
+  UNDER_REVIEW
+}
+
+model FacilityUser {
+  id         String   @id @default(cuid())
+  userId     String
+  facilityId String
+  user       User     @relation(fields: [userId], references: [id])
+  facility   Facility @relation(fields: [facilityId], references: [id])
+
+  @@unique([userId, facilityId])
+}
+
+model Sensor {
+  id         String          @id @default(cuid())
+  facilityId String
+  type       SensorType
+  unit       String
+  location   String
+  isActive   Boolean         @default(true)
+  facility   Facility        @relation(fields: [facilityId], references: [id])
+  readings   SensorReading[]
+  thresholds Threshold?
+}
+
+enum SensorType {
+  PH
+  COD
+  BOD
+  TSS
+  TEMPERATURE
+  HEAVY_METAL_LEAD
+  HEAVY_METAL_MERCURY
+  AMMONIA
+  DISSOLVED_OXYGEN
+  TURBIDITY
+}
+
+model SensorReading {
+  id        String   @id @default(cuid())
+  sensorId  String
+  value     Float
+  unit      String
+  timestamp DateTime @default(now())
+  isAnomaly Boolean  @default(false)
+  riskScore Float?
+  sensor    Sensor   @relation(fields: [sensorId], references: [id])
+
+  @@index([sensorId, timestamp])
+}
+
+model Threshold {
+  id           String  @id @default(cuid())
+  sensorId     String  @unique
+  minValue     Float?
+  maxValue     Float?
+  warnMin      Float?
+  warnMax      Float?
+  section82Ref String
+  sensor       Sensor  @relation(fields: [sensorId], references: [id])
+}
+
+model Alert {
+  id          String      @id @default(cuid())
+  facilityId  String
+  sensorId    String?
+  type        AlertType
+  severity    Severity
+  parameter   String
+  value       Float?
+  threshold   Float?
+  message     String
+  predictedAt DateTime?
+  triggeredAt DateTime    @default(now())
+  resolvedAt  DateTime?
+  status      AlertStatus @default(ACTIVE)
+  notified    Boolean     @default(false)
+  facility    Facility    @relation(fields: [facilityId], references: [id])
+}
+
+enum AlertType {
+  THRESHOLD_BREACH
+  PREDICTED_BREACH
+  ANOMALY_DETECTED
+  SENSOR_OFFLINE
+  SYSTEM_WARNING
+}
+
+enum Severity {
+  INFO
+  WARNING
+  CRITICAL
+  EMERGENCY
+}
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+  FALSE_POSITIVE
+}
+
+model Prediction {
+  id                String   @id @default(cuid())
+  facilityId        String
+  parameter         String
+  predictedValue    Float
+  confidence        Float
+  breachProbability Float
+  horizon           Int
+  predictedAt       DateTime @default(now())
+  targetTime        DateTime
+  modelVersion      String
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  facilityId  String
+  type        ReportType
+  period      String
+  status      ReportStatus @default(PENDING)
+  fileUrl     String?
+  generatedAt DateTime?
+  createdAt   DateTime     @default(now())
+  facility    Facility     @relation(fields: [facilityId], references: [id])
+}
+
+enum ReportType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  INCIDENT
+  REGULATORY_SUBMISSION
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATING
+  READY
+  FAILED
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}

@@ -1,37 +1,52 @@
-import GithubProvider from "next-auth/providers/github";
-import GoogleProvider from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import bcrypt from "bcryptjs";
+import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import { prisma } from "@/lib/prisma";
 
-export const NEXT_AUTH_CONFIG = {
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: "jwt" },
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    }),
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials.password) return null;
+        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+        if (!user?.password) return null;
 
-    providers: [
-        GithubProvider({
-            clientId: process.env.GITHUB_ID || "",
-            clientSecret: process.env.GITHUB_SECRET || "",
-        }),
-        GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID || "",
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-        }),
-        CredentialsProvider({
-            name: "Credentials",
-            credentials: {
-                username: { label: "Username", type: "text", placeholder: "Eg: Enjin@28" },
-                password: { label: "Password", type: "password" }
-            },
+        const isValid = await bcrypt.compare(credentials.password, user.password);
+        if (!isValid) return null;
 
-            //@ts-ignore
-            async authorize(credentials, req) {
-                // TODO
-                // Add logic to authenticate the user inputs and find the matchin result in the database
-                const user = { id: "1", username: "username", password: "password" }
-
-                if (!user) {
-                    return null
-                }
-            }
-        })
-
-    ],
-    secret: process.env.NEXTAUTH_SECRET
-}
+        return { id: user.id, email: user.email, name: user.name, role: user.role };
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user?.role) token.role = user.role;
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.sub ?? "";
+        session.user.role = token.role;
+      }
+      return session;
+    },
+  },
+  pages: {
+    signIn: "/login",
+    error: "/login",
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+};

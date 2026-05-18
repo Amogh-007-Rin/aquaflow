@@ -1,1 +1,39 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  --bg: #050d1a;
+  --surface: #0a1628;
+  --border: #1a2d4a;
+  --text: #e8f4ff;
+  --muted: #4a7fa5;
+  --primary: #00d4ff;
+  --success: #00ff88;
+  --warning: #ffaa00;
+  --danger: #ff3366;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+}
+
+body {
+  font-family: Inter, Arial, sans-serif;
+}
+
+.mono {
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.glass-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.glow {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
+}
